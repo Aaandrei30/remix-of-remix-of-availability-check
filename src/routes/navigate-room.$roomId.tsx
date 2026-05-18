@@ -17,6 +17,7 @@ import {
 } from "@/lib/indoor-rooms";
 
 const LS_KEY = "wayfinder.lastStartRoomId";
+const LS_OFFSET_KEY = "wayfinder.headingOffset";
 
 const searchSchema = z.object({
   from: fallback(z.string().optional(), undefined),
@@ -91,6 +92,19 @@ function NavigateRoomPage() {
   // For multi-floor routing: once user reaches the stairs and goes up,
   // they tap "I'm on the next floor" and we switch the waypoint off.
   const [stairsCleared, setStairsCleared] = useState(false);
+  const [pickerMode, setPickerMode] = useState<"start" | "calibrate">("start");
+  const [headingOffset, setHeadingOffset] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    const v = Number(window.localStorage.getItem(LS_OFFSET_KEY));
+    return Number.isFinite(v) ? v : 0;
+  });
+
+  function saveOffset(v: number) {
+    setHeadingOffset(v);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LS_OFFSET_KEY, String(v));
+    }
+  }
 
   // Sync ?from= when it changes (e.g. user scans a new QR mid-session).
   useEffect(() => {
@@ -189,7 +203,21 @@ function NavigateRoomPage() {
   // when the user changes their "I'm at" room.
   const relative = heading == null
     ? targetBearing
-    : shortestAngle(targetBearing - heading);
+    : shortestAngle(targetBearing - (heading + headingOffset));
+
+  /** User picked a reference room they're facing → compute & store offset. */
+  function calibrateAgainst(refRoomId: string) {
+    const ref = getRoom(refRoomId);
+    if (!ref || heading == null) {
+      setPickerOpen(false);
+      return;
+    }
+    const refBearing = bearingXZ(start.position, ref.position);
+    // We want: targetBearing - (heading + offset) ≈ refBearing - (heading + offset) = 0
+    // when target = ref. So offset = refBearing - heading.
+    saveOffset(shortestAngle(refBearing - heading));
+    setPickerOpen(false);
+  }
 
   function goUpstairs() {
     if (!stairs) return;
@@ -354,6 +382,34 @@ function NavigateRoomPage() {
                 </button>
               )}
 
+              <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-3">
+                <button
+                  onClick={() => {
+                    setPickerMode("calibrate");
+                    setPickerOpen(true);
+                  }}
+                  disabled={heading == null}
+                  className="flex-1 text-xs px-3 py-2 rounded-xl border border-white/15 hover:bg-white/10 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Compass className="h-3.5 w-3.5" />
+                  Calibrate arrow
+                </button>
+                {headingOffset !== 0 && (
+                  <button
+                    onClick={() => saveOffset(0)}
+                    className="text-[11px] px-2.5 py-2 rounded-xl border border-white/15 hover:bg-white/10 transition"
+                    title={`Offset: ${Math.round(headingOffset)}°`}
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+              {headingOffset !== 0 && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Calibrated · offset {Math.round(headingOffset)}°
+                </p>
+              )}
+
               {heading == null && !needsPermission && (
                 <p className="mt-3 text-[11px] text-muted-foreground border-t border-white/10 pt-3">
                   Compass unavailable on this device — arrow shows absolute bearing only.
@@ -372,7 +428,10 @@ function NavigateRoomPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex items-end"
-            onClick={() => setPickerOpen(false)}
+            onClick={() => {
+              setPickerOpen(false);
+              setPickerMode("start");
+            }}
           >
             <motion.div
               initial={{ y: 40 }}
@@ -381,23 +440,35 @@ function NavigateRoomPage() {
               onClick={(e) => e.stopPropagation()}
               className="w-full rounded-t-3xl glass p-5 max-h-[70vh] overflow-y-auto"
             >
-              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-3">
-                I'm currently at
+              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-1">
+                {pickerMode === "calibrate"
+                  ? "Point phone at this room, then tap"
+                  : "I'm currently at"}
               </p>
+              {pickerMode === "calibrate" && (
+                <p className="text-[11px] text-muted-foreground mb-3">
+                  Pick any room or landmark you can see down the hallway. We'll align the arrow to your real-world heading.
+                </p>
+              )}
               <ul className="space-y-1.5">
                 {ROOMS.map((r) => (
                   <li key={r.id}>
                     <button
                       onClick={() => {
-                        setStartId(r.id);
-                        setPickerOpen(false);
+                        if (pickerMode === "calibrate") {
+                          calibrateAgainst(r.id);
+                          setPickerMode("start");
+                        } else {
+                          setStartId(r.id);
+                          setPickerOpen(false);
+                        }
                       }}
                       className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                        startId === r.id
+                        pickerMode === "start" && startId === r.id
                           ? "bg-primary/20 text-primary"
                           : "hover:bg-white/10"
                       }`}
-                      disabled={r.id === target.id}
+                      disabled={pickerMode === "start" && r.id === target.id}
                     >
                       <span className="truncate">{r.name}</span>
                       <span className="text-[10px] text-muted-foreground">{r.floor}</span>
