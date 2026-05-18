@@ -9,8 +9,10 @@ import { ARCompassArrow } from "@/components/wayfinder/ARCompassArrow";
 import {
   ROOMS,
   getRoom,
-  bearingXZ,
-  distanceXZ,
+  getStairsRoom,
+  getEffectiveStart,
+  resolveRouteBearing,
+  resolveRouteDistance,
   shortestAngle,
   directionLabel,
   DEFAULT_START_ID,
@@ -176,20 +178,24 @@ function NavigateRoomPage() {
   const start = getRoom(startId) ?? ROOMS[0];
   const safeTarget = target ?? ROOMS[0];
 
-  // Find stairs waypoint (model only has one stairs anchor).
-  const stairs = useMemo(() => ROOMS.find((r) => /stair/i.test(r.name)), []);
+  const stairs = useMemo(() => getStairsRoom(), []);
   const sameFloor = start.floor === safeTarget.floor;
   // Leg 1 = head to stairs. Leg 2 = stairs → destination on target floor.
   const useStairsLeg = !sameFloor && !!stairs && !stairsCleared;
   const waypoint = useStairsLeg ? stairs! : safeTarget;
 
+  const effectiveStart = useMemo(
+    () => getEffectiveStart(start, stairsCleared),
+    [start, stairsCleared],
+  );
+
   const targetBearing = useMemo(
-    () => bearingXZ(start.position, waypoint.position),
-    [start, waypoint],
+    () => resolveRouteBearing(effectiveStart, waypoint),
+    [effectiveStart, waypoint],
   );
   const dist = useMemo(
-    () => distanceXZ(start.position, waypoint.position),
-    [start, waypoint],
+    () => resolveRouteDistance(start, waypoint, stairsCleared),
+    [start, waypoint, stairsCleared],
   );
 
   if (!target) return <NotFound />;
@@ -212,7 +218,7 @@ function NavigateRoomPage() {
       setPickerOpen(false);
       return;
     }
-    const refBearing = bearingXZ(start.position, ref.position);
+    const refBearing = resolveRouteBearing(getEffectiveStart(start, stairsCleared), ref);
     // We want: targetBearing - (heading + offset) ≈ refBearing - (heading + offset) = 0
     // when target = ref. So offset = refBearing - heading.
     saveOffset(shortestAngle(refBearing - heading));

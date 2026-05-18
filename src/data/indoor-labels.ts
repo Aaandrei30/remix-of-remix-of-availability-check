@@ -1,6 +1,12 @@
 export type IndoorLabel = { id: string; name: string; floor: string; position: [number, number, number] };
 export const INDOOR_LABELS: IndoorLabel[] = [
   {
+    id: "2f-hallway-center",
+    name: "2F Hallway Center",
+    floor: "2F",
+    position: [-0.3, -4.9, -13.3],
+  },
+  {
     "id": "3302b6aa-3577-4f43-af1a-81fdb9a3c04f",
     "name": "Information Office",
     "floor": "2F",
