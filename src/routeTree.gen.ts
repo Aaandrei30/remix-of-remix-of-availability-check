@@ -14,6 +14,7 @@ import { Route as GpsRouteImport } from './routes/gps'
 import { Route as DestinationsRouteImport } from './routes/destinations'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NavigateDestinationIdRouteImport } from './routes/navigate.$destinationId'
+import { Route as NavigateRoomRoomIdRouteImport } from './routes/navigate-room.$roomId'
 
 const IndoorRoute = IndoorRouteImport.update({
   id: '/indoor',
@@ -40,12 +41,18 @@ const NavigateDestinationIdRoute = NavigateDestinationIdRouteImport.update({
   path: '/navigate/$destinationId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NavigateRoomRoomIdRoute = NavigateRoomRoomIdRouteImport.update({
+  id: '/navigate-room/$roomId',
+  path: '/navigate-room/$roomId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/destinations': typeof DestinationsRoute
   '/gps': typeof GpsRoute
   '/indoor': typeof IndoorRoute
+  '/navigate-room/$roomId': typeof NavigateRoomRoomIdRoute
   '/navigate/$destinationId': typeof NavigateDestinationIdRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/destinations': typeof DestinationsRoute
   '/gps': typeof GpsRoute
   '/indoor': typeof IndoorRoute
+  '/navigate-room/$roomId': typeof NavigateRoomRoomIdRoute
   '/navigate/$destinationId': typeof NavigateDestinationIdRoute
 }
 export interface FileRoutesById {
@@ -61,6 +69,7 @@ export interface FileRoutesById {
   '/destinations': typeof DestinationsRoute
   '/gps': typeof GpsRoute
   '/indoor': typeof IndoorRoute
+  '/navigate-room/$roomId': typeof NavigateRoomRoomIdRoute
   '/navigate/$destinationId': typeof NavigateDestinationIdRoute
 }
 export interface FileRouteTypes {
@@ -70,15 +79,23 @@ export interface FileRouteTypes {
     | '/destinations'
     | '/gps'
     | '/indoor'
+    | '/navigate-room/$roomId'
     | '/navigate/$destinationId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/destinations' | '/gps' | '/indoor' | '/navigate/$destinationId'
+  to:
+    | '/'
+    | '/destinations'
+    | '/gps'
+    | '/indoor'
+    | '/navigate-room/$roomId'
+    | '/navigate/$destinationId'
   id:
     | '__root__'
     | '/'
     | '/destinations'
     | '/gps'
     | '/indoor'
+    | '/navigate-room/$roomId'
     | '/navigate/$destinationId'
   fileRoutesById: FileRoutesById
 }
@@ -87,6 +104,7 @@ export interface RootRouteChildren {
   DestinationsRoute: typeof DestinationsRoute
   GpsRoute: typeof GpsRoute
   IndoorRoute: typeof IndoorRoute
+  NavigateRoomRoomIdRoute: typeof NavigateRoomRoomIdRoute
   NavigateDestinationIdRoute: typeof NavigateDestinationIdRoute
 }
 
@@ -127,6 +145,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NavigateDestinationIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/navigate-room/$roomId': {
+      id: '/navigate-room/$roomId'
+      path: '/navigate-room/$roomId'
+      fullPath: '/navigate-room/$roomId'
+      preLoaderRoute: typeof NavigateRoomRoomIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -135,6 +160,7 @@ const rootRouteChildren: RootRouteChildren = {
   DestinationsRoute: DestinationsRoute,
   GpsRoute: GpsRoute,
   IndoorRoute: IndoorRoute,
+  NavigateRoomRoomIdRoute: NavigateRoomRoomIdRoute,
   NavigateDestinationIdRoute: NavigateDestinationIdRoute,
 }
 export const routeTree = rootRouteImport
