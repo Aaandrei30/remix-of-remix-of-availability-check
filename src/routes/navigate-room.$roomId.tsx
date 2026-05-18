@@ -2,6 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Compass, MapPin, RotateCw, Crosshair } from "lucide-react";
+import { z } from "zod";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { CameraView } from "@/components/wayfinder/CameraView";
 import { ARCompassArrow } from "@/components/wayfinder/ARCompassArrow";
 import {
@@ -14,7 +16,14 @@ import {
   DEFAULT_START_ID,
 } from "@/lib/indoor-rooms";
 
+const LS_KEY = "wayfinder.lastStartRoomId";
+
+const searchSchema = z.object({
+  from: fallback(z.string().optional(), undefined),
+});
+
 export const Route = createFileRoute("/navigate-room/$roomId")({
+  validateSearch: zodValidator(searchSchema),
   head: ({ params }) => {
     const room = getRoom(params.roomId);
     return {
@@ -61,13 +70,39 @@ const ARRIVAL_THRESHOLD_M = 2.5;
 
 function NavigateRoomPage() {
   const { roomId } = Route.useParams();
+  const { from } = Route.useSearch();
   const target = getRoom(roomId);
   const navigate = useNavigate();
 
-  const [startId, setStartId] = useState<string>(DEFAULT_START_ID);
+  // Priority: ?from= (QR scan) → localStorage → default.
+  const initialStartId = (() => {
+    if (from && getRoom(from)) return from;
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem(LS_KEY);
+      if (saved && getRoom(saved)) return saved;
+    }
+    return DEFAULT_START_ID;
+  })();
+
+  const [startId, setStartId] = useState<string>(initialStartId);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [heading, setHeading] = useState<number | null>(null);
   const [needsPermission, setNeedsPermission] = useState(false);
+
+  // Sync ?from= when it changes (e.g. user scans a new QR mid-session).
+  useEffect(() => {
+    if (from && getRoom(from) && from !== startId) {
+      setStartId(from);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [from]);
+
+  // Persist whenever start changes.
+  useEffect(() => {
+    if (typeof window !== "undefined" && startId) {
+      window.localStorage.setItem(LS_KEY, startId);
+    }
+  }, [startId]);
 
   // iOS 13+ needs an explicit permission gesture for DeviceOrientationEvent.
   useEffect(() => {
