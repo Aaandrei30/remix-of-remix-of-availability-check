@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, Compass, MapPin, RotateCw, Crosshair } from "lucide-react";
+import { ChevronLeft, Compass, MapPin, RotateCw, Crosshair, ArrowUpFromLine } from "lucide-react";
 import { z } from "zod";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { CameraView } from "@/components/wayfinder/CameraView";
@@ -88,11 +88,15 @@ function NavigateRoomPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [heading, setHeading] = useState<number | null>(null);
   const [needsPermission, setNeedsPermission] = useState(false);
+  // For multi-floor routing: once user reaches the stairs and goes up,
+  // they tap "I'm on the next floor" and we switch the waypoint off.
+  const [stairsCleared, setStairsCleared] = useState(false);
 
   // Sync ?from= when it changes (e.g. user scans a new QR mid-session).
   useEffect(() => {
     if (from && getRoom(from) && from !== startId) {
       setStartId(from);
+      setStairsCleared(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [from]);
@@ -158,17 +162,26 @@ function NavigateRoomPage() {
   const start = getRoom(startId) ?? ROOMS[0];
   const safeTarget = target ?? ROOMS[0];
 
+  // Find stairs waypoint (model only has one stairs anchor).
+  const stairs = useMemo(() => ROOMS.find((r) => /stair/i.test(r.name)), []);
+  const sameFloor = start.floor === safeTarget.floor;
+  // Leg 1 = head to stairs. Leg 2 = stairs → destination on target floor.
+  const useStairsLeg = !sameFloor && !!stairs && !stairsCleared;
+  const waypoint = useStairsLeg ? stairs! : safeTarget;
+
   const targetBearing = useMemo(
-    () => bearingXZ(start.position, safeTarget.position),
-    [start, safeTarget],
+    () => bearingXZ(start.position, waypoint.position),
+    [start, waypoint],
   );
   const dist = useMemo(
-    () => distanceXZ(start.position, safeTarget.position),
-    [start, safeTarget],
+    () => distanceXZ(start.position, waypoint.position),
+    [start, waypoint],
   );
 
   if (!target) return <NotFound />;
-  const arrived = dist < ARRIVAL_THRESHOLD_M;
+  const reachedWaypoint = dist < ARRIVAL_THRESHOLD_M;
+  const arrived = reachedWaypoint && !useStairsLeg;
+  const atStairs = reachedWaypoint && useStairsLeg;
 
   // Rotation to apply to the arrow: positive = clockwise (right).
   // If we have a heading, rotate relative to where the phone is pointing;
@@ -178,7 +191,11 @@ function NavigateRoomPage() {
     ? targetBearing
     : shortestAngle(targetBearing - heading);
 
-  const sameFloor = start.floor === target.floor;
+  function goUpstairs() {
+    if (!stairs) return;
+    setStartId(stairs.id);
+    setStairsCleared(true);
+  }
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-black">
@@ -196,10 +213,12 @@ function NavigateRoomPage() {
           </button>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground leading-none">
-              Heading to · {target.floor}
+              {useStairsLeg
+                ? `Step 1 of 2 · via stairs to ${target.floor}`
+                : `Heading to · ${target.floor}`}
             </p>
             <p className="font-display text-sm font-semibold truncate mt-0.5">
-              {target.name}
+              {useStairsLeg ? `Stairs → ${target.name}` : target.name}
             </p>
           </div>
           <div
@@ -268,12 +287,31 @@ function NavigateRoomPage() {
                 </button>
               </div>
             </div>
+          ) : atStairs ? (
+            <div
+              className="rounded-3xl p-6 text-center"
+              style={{
+                background: "var(--gradient-primary)",
+                color: "var(--primary-foreground)",
+              }}
+            >
+              <h2 className="font-display text-xl font-bold">You're at the stairs</h2>
+              <p className="text-sm opacity-80 mt-1">
+                Go up to {target.floor}, then tap below to continue.
+              </p>
+              <button
+                onClick={goUpstairs}
+                className="mt-5 h-12 w-full rounded-2xl bg-black/80 text-white hover:bg-black transition flex items-center justify-center gap-2 font-semibold text-sm"
+              >
+                <ArrowUpFromLine className="h-4 w-4" /> I'm on {target.floor}
+              </button>
+            </div>
           ) : (
             <div className="glass rounded-3xl p-5">
               <div className="flex items-baseline justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    Distance
+                    {useStairsLeg ? "To stairs" : "Distance"}
                   </p>
                   <p className="font-display text-5xl font-bold tabular-nums leading-none mt-1">
                     {Math.round(dist)}
@@ -296,15 +334,25 @@ function NavigateRoomPage() {
                 />
                 <p className="text-base font-medium leading-snug">
                   {directionLabel(relative)}
-                  {!sameFloor && (
+                  {useStairsLeg && (
                     <>
                       {" "}
-                      · then take the stairs to{" "}
+                      · to the stairs, then up to{" "}
                       <span style={{ color: "var(--primary)" }}>{target.floor}</span>
                     </>
                   )}
                 </p>
               </div>
+
+              {useStairsLeg && (
+                <button
+                  onClick={goUpstairs}
+                  className="mt-3 w-full text-xs px-3 py-2 rounded-xl border border-white/15 hover:bg-white/10 transition flex items-center justify-center gap-1.5"
+                >
+                  <ArrowUpFromLine className="h-3.5 w-3.5" />
+                  Skip — I'm already on {target.floor}
+                </button>
+              )}
 
               {heading == null && !needsPermission && (
                 <p className="mt-3 text-[11px] text-muted-foreground border-t border-white/10 pt-3">
