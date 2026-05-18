@@ -120,18 +120,19 @@ function NavigateRoomPage() {
     }
   }
 
-  if (!target) return <NotFound />;
-
   const start = getRoom(startId) ?? ROOMS[0];
+  const safeTarget = target ?? ROOMS[0];
 
   const targetBearing = useMemo(
-    () => bearingXZ(start.position, target.position),
-    [start, target],
+    () => bearingXZ(start.position, safeTarget.position),
+    [start, safeTarget],
   );
   const dist = useMemo(
-    () => distanceXZ(start.position, target.position),
-    [start, target],
+    () => distanceXZ(start.position, safeTarget.position),
+    [start, safeTarget],
   );
+
+  if (!target) return <NotFound />;
   const arrived = dist < ARRIVAL_THRESHOLD_M;
 
   // Rotation to apply to the arrow: positive = clockwise (right).
