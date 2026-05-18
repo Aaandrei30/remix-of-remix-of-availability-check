@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
-import { Search, ChevronRight, Clock, Footprints, Navigation, FlaskConical, DoorOpen } from "lucide-react";
+import { Search, ChevronRight, Clock, Footprints, Navigation, FlaskConical, DoorOpen, QrCode } from "lucide-react";
 import { NavBar } from "@/components/wayfinder/NavBar";
 import { DESTINATIONS, CURRENT_LOCATION } from "@/lib/wayfinder-data";
 import { ROOMS } from "@/lib/indoor-rooms";
@@ -82,6 +82,12 @@ function DestinationsPage() {
               <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Indoor Rooms · AR Navigation
               </h3>
+              <Link
+                to="/qr-posters"
+                className="ml-auto text-[10px] uppercase tracking-[0.18em] text-primary hover:underline flex items-center gap-1"
+              >
+                <QrCode className="h-3 w-3" /> QR posters
+              </Link>
             </div>
             <ul className="space-y-2">
               {indoorRooms.map((r, i) => (
