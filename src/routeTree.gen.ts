@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as QrPostersRouteImport } from './routes/qr-posters'
 import { Route as IndoorRouteImport } from './routes/indoor'
 import { Route as GpsRouteImport } from './routes/gps'
 import { Route as DestinationsRouteImport } from './routes/destinations'
@@ -16,6 +17,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as NavigateDestinationIdRouteImport } from './routes/navigate.$destinationId'
 import { Route as NavigateRoomRoomIdRouteImport } from './routes/navigate-room.$roomId'
 
+const QrPostersRoute = QrPostersRouteImport.update({
+  id: '/qr-posters',
+  path: '/qr-posters',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndoorRoute = IndoorRouteImport.update({
   id: '/indoor',
   path: '/indoor',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/destinations': typeof DestinationsRoute
   '/gps': typeof GpsRoute
   '/indoor': typeof IndoorRoute
+  '/qr-posters': typeof QrPostersRoute
   '/navigate-room/$roomId': typeof NavigateRoomRoomIdRoute
   '/navigate/$destinationId': typeof NavigateDestinationIdRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/destinations': typeof DestinationsRoute
   '/gps': typeof GpsRoute
   '/indoor': typeof IndoorRoute
+  '/qr-posters': typeof QrPostersRoute
   '/navigate-room/$roomId': typeof NavigateRoomRoomIdRoute
   '/navigate/$destinationId': typeof NavigateDestinationIdRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/destinations': typeof DestinationsRoute
   '/gps': typeof GpsRoute
   '/indoor': typeof IndoorRoute
+  '/qr-posters': typeof QrPostersRoute
   '/navigate-room/$roomId': typeof NavigateRoomRoomIdRoute
   '/navigate/$destinationId': typeof NavigateDestinationIdRoute
 }
@@ -79,6 +88,7 @@ export interface FileRouteTypes {
     | '/destinations'
     | '/gps'
     | '/indoor'
+    | '/qr-posters'
     | '/navigate-room/$roomId'
     | '/navigate/$destinationId'
   fileRoutesByTo: FileRoutesByTo
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
     | '/destinations'
     | '/gps'
     | '/indoor'
+    | '/qr-posters'
     | '/navigate-room/$roomId'
     | '/navigate/$destinationId'
   id:
@@ -95,6 +106,7 @@ export interface FileRouteTypes {
     | '/destinations'
     | '/gps'
     | '/indoor'
+    | '/qr-posters'
     | '/navigate-room/$roomId'
     | '/navigate/$destinationId'
   fileRoutesById: FileRoutesById
@@ -104,12 +116,20 @@ export interface RootRouteChildren {
   DestinationsRoute: typeof DestinationsRoute
   GpsRoute: typeof GpsRoute
   IndoorRoute: typeof IndoorRoute
+  QrPostersRoute: typeof QrPostersRoute
   NavigateRoomRoomIdRoute: typeof NavigateRoomRoomIdRoute
   NavigateDestinationIdRoute: typeof NavigateDestinationIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/qr-posters': {
+      id: '/qr-posters'
+      path: '/qr-posters'
+      fullPath: '/qr-posters'
+      preLoaderRoute: typeof QrPostersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/indoor': {
       id: '/indoor'
       path: '/indoor'
@@ -160,9 +180,19 @@ const rootRouteChildren: RootRouteChildren = {
   DestinationsRoute: DestinationsRoute,
   GpsRoute: GpsRoute,
   IndoorRoute: IndoorRoute,
+  QrPostersRoute: QrPostersRoute,
   NavigateRoomRoomIdRoute: NavigateRoomRoomIdRoute,
   NavigateDestinationIdRoute: NavigateDestinationIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
